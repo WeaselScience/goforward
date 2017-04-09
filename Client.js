@@ -2,14 +2,38 @@ import net from 'net';
 import EventEmitter from 'events';
 import crypto from 'crypto';
 import debug from 'debug';
-import SecureSocket from './SecureSocket';
+import SecureSocketMaker from './SecureSocketMaker';
+import uuid from 'uuid/v4';
+import find from 'lodash/find';
 
-const log = debug('Client');
+const log = debug('fwdizer:Client');
 
 export default class Client extends EventEmitter {
-    constructor({
+    expose({
         localPort,
-        remotePort,
+        remotePort
+    }) {
+        log(`Exposing local port ${localPort} on remote port ${remotePort}`);
+
+        this.exposures.push({
+            localPort,
+            remotePort
+        });
+
+        this.sendControlMessage({
+            startForwardingOnPort: remotePort
+        });
+    }
+
+    sendControlMessage(message) {
+        const finalMessage = Object.assign({}, message, {
+            clientId: this.clientId
+        });
+
+        this.secureControlSocket.write(JSON.stringify(finalMessage));
+    }
+
+    constructor({
         serverHost,
         serverPort,
         algorithm = 'aes-256-ctr',
@@ -18,10 +42,27 @@ export default class Client extends EventEmitter {
         super();
 
         Object.assign(this, {
-            localPort,
-            remotePort,
             serverHost,
             serverPort,
+            algorithm,
+            secret
+        });
+
+
+
+        log('Creating');
+
+
+
+        const clientId = this.clientId = uuid();
+
+
+
+        const exposures = this.exposures = [];
+
+
+
+        const secureSocket = this.secureSocket = SecureSocketMaker({
             algorithm,
             secret
         });
@@ -31,7 +72,9 @@ export default class Client extends EventEmitter {
             port: serverPort
         });
 
-        this.secureControlSocket = SecureSocket(this.controlSocket);
+        this.secureControlSocket = secureSocket(this.controlSocket);
+
+
 
         this.secureControlSocket.on('data', (data) => {
             const jsonString = JSON.parse(data.toString());
@@ -42,68 +85,81 @@ export default class Client extends EventEmitter {
                 jsonData = JSON.parse(jsonString);
             } catch (error) {
                 log(`Error while parsing control request: ${error.toString()}`);
-                return;
+                return this.selfDestruct();
+            }
+
+            if (jsonData.requestTunnel) {
+                const exposure = find(exposures, {
+                    remotePort: jsonData.remotePort
+                });
+
+                log(`Server received a connection on remote port ${
+                    exposure.remotePort
+                } and wants us to create a socket piped to local port ${
+                    exposure.localPort
+                }`);
+
+                const socketToLocalPort = net.createConnection(exposure.localPort);
+
+                const socketToRemotePort = net.createConnection({
+                    host: serverHost,
+                    port: serverPort
+                });
+
+                const secureSocketToRemotePort = secureSocket(socketToRemotePort);
+
+                secureSocketToRemotePort.write(JSON.stringify({
+                    newTunnel: true,
+                    remotePort: exposure.remotePort,
+                    clientId
+                }));
+
+                secureSocketToRemotePort.pipe(socketToLocalPort);
+                socketToLocalPort.pipe(secureSocketToRemotePort);
             }
         });
+
+
+
+        this.sendControlMessage({
+            controlSocket: true
+        });
+
+
 
         this.controlSocket.on('connect', () => {
-            log('Control socket connected');
-
-            this.secureControlSocket.write(JSON.stringify({
-                port: remotePort
-            }));
+            this.controlSocketReady = true;
         });
 
+        this.controlSocket.on('close', () => {
+            this.controlSocketReady = false;
 
-
-
-
-
-
-
-
-        socketToServer.on('connect', () => {
-            log('Connected to the server');
-
-            outgoingSocketToServer.write(JSON.stringify({
-                port: remotePort
-            }));
+            this.selfDestruct();
         });
 
-        const readinessListener = (data) => {
-            log('Server responded that it is ready to continue');
+        this.controlSocket.on('end', () => {
+            this.controlSocketReady = false;
 
-            const jsonString = data.toString();
+            this.selfDestruct();
+        });
 
-            let jsonData;
+        this.controlSocket.on('error', () => {
+            this.controlSocketReady = false;
 
-            try {
-                jsonData = JSON.parse(jsonString);
-            } catch (error) {
-                return this.destroy();
-            }
+            this.selfDestruct();
+        });
 
-            if (!jsonData) {
-                return this.destroy();
-            }
+        this.controlSocket.on('timeout', () => {
+            this.controlSocketReady = false;
 
-            incomingSocketToServer.removeListener('data', readinessListener);
-
-            this.socketToLocalServer = net.createConnection(localPort);
-
-            this.socketToLocalServer.on('connect', () => {
-                log('Connected to the local service');
-
-                this.socketToLocalServer.pipe(outgoingSocketToServer);
-                incomingSocketToServer.pipe(this.socketToLocalServer);
-            });
-        };
-
-        incomingSocketToServer.on('data', readinessListener);
+            this.selfDestruct();
+        });
     }
 
-    destroy() {
-        log('Destroying');
+    selfDestruct() {
+        log('Self-destructing');
+
+        this.controlSocket.destroy();
 
         this.socketToServer.destroy();
 
