@@ -110,7 +110,7 @@ export default class Server extends EventEmitter {
     handleConnection(socket) {
         const secureClientSocket = this.secureSocket(socket);
 
-        const handshakeListener = (data) => {
+        secureClientSocket.on('data', (data) => {
             const jsonString = data.toString();
 
             let jsonData;
@@ -122,9 +122,6 @@ export default class Server extends EventEmitter {
 
                 return this.selfDestruct();
             }
-
-            // Do not interpret further data as handshakes
-            secureClientSocket.removeListener('data', handshakeListener);
 
             if (jsonData.controlSocket) {
                 this.controlSockets[jsonData.clientId] = secureClientSocket;
@@ -140,9 +137,7 @@ export default class Server extends EventEmitter {
 
                 router.emit('newTunnel', secureClientSocket);
             }
-        };
-
-        secureClientSocket.on('data', handshakeListener);
+        });
 
         socket.on('end', () => {
             log('Client Socket Ended');
