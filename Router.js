@@ -8,6 +8,10 @@ export default class Router extends EventEmitter {
     constructor({
         port
     }) {
+        super();
+
+
+
         const socketQueue = [];
 
 

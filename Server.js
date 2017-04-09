@@ -2,7 +2,7 @@ import net from 'net';
 import EventEmitter from 'events';
 import crypto from 'crypto';
 import debug from 'debug';
-import RoutedSocket from './RoutedSocket';
+import Router from './Router';
 import SecureSocketMaker from './SecureSocketMaker';
 import find from 'lodash/find';
 
@@ -14,12 +14,12 @@ export default class Server extends EventEmitter {
         algorithm = 'aes-256-ctr',
         secret
     }) {
+        super();
+
         log(`Constructing a Server on port ${port}`);
 
         this.controlSockets = {};
         this.routers = {};
-
-        super();
 
         Object.assign(this, {
             port,
@@ -64,8 +64,6 @@ export default class Server extends EventEmitter {
         log('Self-Destructing');
 
         this.server.close();
-
-        this.routedSockets.forEach((routedSocket) => routedSocket.destroy());
 
         this.emit('dead');
     }

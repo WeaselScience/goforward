@@ -10,14 +10,13 @@ server.on('ready', () => {
     console.log('Server Ready!');
 
     const client = new Client({
-        localPort: 1234,
-        remotePort: 8080,
         serverHost: '127.0.0.1',
         serverPort: 3000,
         secret: 'asd'
     });
 
-    client.on('ready', () => {
-        console.log('Client Ready!');
+    client.expose({
+        localPort: 1234,
+        remotePort: 8080
     });
 });
