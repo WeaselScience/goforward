@@ -15,6 +15,10 @@ export default class Router extends EventEmitter {
 
 
 
+        log('Creating');
+
+
+
         Object.assign(this, {
             externalPort
         });

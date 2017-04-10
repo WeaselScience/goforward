@@ -12,11 +12,25 @@ export default class ControlClient extends EventEmitter {
     }) {
         super();
 
-        log('Creating');
+        const url = `https://${host}:${port}`;
 
-        const socket = socketio(`https://${host}:${port}`, {
+        log(`Creating: ${url}`);
+
+        const socket = socketio(url, {
             ...tlsConfig,
             rejectUnauthorized: true
+        });
+
+        socket.on('error', (error) => {
+            log(`Error: ${error.toString()}`);
+        });
+
+        socket.on('connect', () => {
+            log('Connected');
+        });
+
+        socket.on('connect_error', (error) => {
+            log(`Connection error: ${error.toString()}`);
         });
 
         return socket;

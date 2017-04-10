@@ -12,7 +12,7 @@ export default class ControlServer extends EventEmitter {
     }) {
         super();
 
-        log('Creating');
+        log(`Creating on ${port}`);
 
         const httpsServer = https.createServer({
             ...tlsConfig,
@@ -29,9 +29,17 @@ export default class ControlServer extends EventEmitter {
             log('new connection');
         });
 
-        httpsServer.listen(port);
+        httpsServer.listen(port, () => {
+            log('listening');
 
-        return socketio(httpsServer);
+            const server = this.server = socketio(httpsServer);
+
+            server.on('connection', (socket) => {
+                console.log('New socket on socket.io');
+            });
+
+            this.emit('ready', server);
+        });
     }
 
     selfDestruct() {

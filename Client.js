@@ -23,8 +23,14 @@ export default class Client extends EventEmitter {
                 internalPort
             }) => {
                 if (error) {
+                    log(`createRouter error: ${error.toString()}`);
+
                     reject(error);
                 } else {
+                    log(`createRouter success ${externalPort} - ${
+                        internalPort
+                    } - ${localPort}`);
+
                     this.exposures.push({
                         externalPort,
                         internalPort,
@@ -48,7 +54,7 @@ export default class Client extends EventEmitter {
 
 
 
-        this.exposures = {};
+        this.exposures = [];
 
 
 

@@ -5,15 +5,23 @@ import fs from 'fs';
 const tlsConfig = JSON.parse(fs.readFileSync('tls.json'));
 
 const server = new Server({
-    port: 3000,
-    tlsConfig
+    port: 8081,
+    tlsConfig: {
+        ca: tlsConfig.caCertificate,
+        cert: tlsConfig.server.certificate,
+        key: tlsConfig.server.key,
+    }
 });
 
 server.on('ready', () => {
     const client = new Client({
-        serverHost: '127.0.0.1',
-        serverPort: 3000,
-        tlsConfig
+        host: '127.0.0.1',
+        port: 8081,
+        tlsConfig: {
+            ca: tlsConfig.caCertificate,
+            cert: tlsConfig.client.certificate,
+            key: tlsConfig.client.key,
+        }
     });
 
     client.expose({

@@ -14,7 +14,7 @@ export default class Server extends EventEmitter {
 
 
 
-        log(`Constructing`);
+        log(`Constructing - control on ${port}`);
 
 
 
@@ -23,25 +23,37 @@ export default class Server extends EventEmitter {
             tlsConfig
         });
 
-        control.on('connection', (socket) => {
-            socket.on('createRouter', ({
-                externalPort
-            }, callback) => {
-                const router = new Router({
-                    externalPort,
-                    tlsConfig
-                });
+        control.on('ready', (server) => {
+            this.emit('ready');
 
-                router.on('ready', () => {
-                    callback({
-                        error: null,
-                        internalPort: router.internalPort
+            server.on('connection', (socket) => {
+                log('New connection on control server');
+
+                socket.on('createRouter', ({
+                    externalPort
+                }, callback) => {
+                    log('Received createRouter request');
+
+                    const router = new Router({
+                        externalPort,
+                        tlsConfig
                     });
 
-                    router.on('newConnection', () => {
-                        socket.emit('requestTunnel', {
-                            externalPort,
+                    router.on('ready', () => {
+                        log('Router is ready');
+
+                        callback({
+                            error: null,
                             internalPort: router.internalPort
+                        });
+
+                        router.on('newConnection', () => {
+                            log('Sending request for new tunnel');
+
+                            socket.emit('requestTunnel', {
+                                externalPort,
+                                internalPort: router.internalPort
+                            });
                         });
                     });
                 });
