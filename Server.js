@@ -24,8 +24,6 @@ export default class Server extends EventEmitter {
         });
 
         control.on('connection', (socket) => {
-            log('New connection on control server');
-
             socket.on('createRouter', ({
                 externalPort
             }, callback) => {

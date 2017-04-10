@@ -72,6 +72,8 @@ export default class Client extends EventEmitter {
             externalPort,
             internalPort
         }) => {
+            log('Processing a request for a new tunnel');
+
             const exposure = find(this.exposures, {
                 externalPort
             });

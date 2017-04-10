@@ -17,21 +17,18 @@ const ControlServer = ({
     });
 
     httpsServer.on('close', () => {
+        console.log('ControlServer unexpectedly closed');
         log('Closed');
     });
 
-    httpsServer.on('secureConnection', () => {
-        log('new connection');
-    });
-
     httpsServer.listen(port, () => {
-        log('listening');
+        log('Listening');
     });
 
     const server = socketio(httpsServer);
 
     server.on('connection', (socket) => {
-        console.log('New socket on socket.io');
+        log('New connection');
     });
 
     return server;
