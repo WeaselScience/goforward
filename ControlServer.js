@@ -1,48 +1,40 @@
-import EventEmitter from 'events';
 import debug from 'debug';
 import https from 'https';
 import socketio from 'socket.io';
 
 const log = debug('fwdizer:ControlServer');
 
-export default class ControlServer extends EventEmitter {
-    constructor({
-        port,
-        tlsConfig
-    }) {
-        super();
+const ControlServer = ({
+    port,
+    tlsConfig
+}) => {
+    log(`Creating on ${port}`);
 
-        log(`Creating on ${port}`);
+    const httpsServer = https.createServer({
+        ...tlsConfig,
+        requestCert: true,
+        rejectUnauthorized: true
+    });
 
-        const httpsServer = https.createServer({
-            ...tlsConfig,
-            requestCert: true,
-            rejectUnauthorized: true
-        });
+    httpsServer.on('close', () => {
+        log('Closed');
+    });
 
-        httpsServer.on('close', () => {
-            log('Closed');
-            this.selfDestruct();
-        });
+    httpsServer.on('secureConnection', () => {
+        log('new connection');
+    });
 
-        httpsServer.on('secureConnection', () => {
-            log('new connection');
-        });
+    httpsServer.listen(port, () => {
+        log('listening');
+    });
 
-        httpsServer.listen(port, () => {
-            log('listening');
+    const server = socketio(httpsServer);
 
-            const server = this.server = socketio(httpsServer);
+    server.on('connection', (socket) => {
+        console.log('New socket on socket.io');
+    });
 
-            server.on('connection', (socket) => {
-                console.log('New socket on socket.io');
-            });
+    return server;
+};
 
-            this.emit('ready', server);
-        });
-    }
-
-    selfDestruct() {
-        log('Self-Destructing');
-    }
-}
+export default ControlServer;

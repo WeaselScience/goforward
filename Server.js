@@ -18,42 +18,38 @@ export default class Server extends EventEmitter {
 
 
 
-        const control = this.control = new ControlServer({
+        const control = this.control = ControlServer({
             port,
             tlsConfig
         });
 
-        control.on('ready', (server) => {
-            this.emit('ready');
+        control.on('connection', (socket) => {
+            log('New connection on control server');
 
-            server.on('connection', (socket) => {
-                log('New connection on control server');
+            socket.on('createRouter', ({
+                externalPort
+            }, callback) => {
+                log('Received createRouter request');
 
-                socket.on('createRouter', ({
-                    externalPort
-                }, callback) => {
-                    log('Received createRouter request');
+                const router = new Router({
+                    externalPort,
+                    tlsConfig
+                });
 
-                    const router = new Router({
-                        externalPort,
-                        tlsConfig
+                router.on('ready', () => {
+                    log('Router is ready');
+
+                    callback({
+                        error: null,
+                        internalPort: router.internalPort
                     });
 
-                    router.on('ready', () => {
-                        log('Router is ready');
+                    router.on('newConnection', () => {
+                        log('Sending request for new tunnel');
 
-                        callback({
-                            error: null,
+                        socket.emit('requestTunnel', {
+                            externalPort,
                             internalPort: router.internalPort
-                        });
-
-                        router.on('newConnection', () => {
-                            log('Sending request for new tunnel');
-
-                            socket.emit('requestTunnel', {
-                                externalPort,
-                                internalPort: router.internalPort
-                            });
                         });
                     });
                 });

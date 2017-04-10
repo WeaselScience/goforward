@@ -62,7 +62,7 @@ export default class Client extends EventEmitter {
 
 
 
-        const control = this.control = new ControlClient({
+        const control = this.control = ControlClient({
             host,
             port,
             tlsConfig

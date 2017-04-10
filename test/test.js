@@ -13,19 +13,17 @@ const server = new Server({
     }
 });
 
-server.on('ready', () => {
-    const client = new Client({
-        host: '127.0.0.1',
-        port: 8081,
-        tlsConfig: {
-            ca: tlsConfig.caCertificate,
-            cert: tlsConfig.client.certificate,
-            key: tlsConfig.client.key,
-        }
-    });
+const client = new Client({
+    host: '127.0.0.1',
+    port: 8081,
+    tlsConfig: {
+        ca: tlsConfig.caCertificate,
+        cert: tlsConfig.client.certificate,
+        key: tlsConfig.client.key,
+    }
+});
 
-    client.expose({
-        localPort: 1234,
-        externalPort: 8080
-    });
+client.expose({
+    localPort: 8082,
+    externalPort: 8080
 });
