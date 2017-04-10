@@ -1,3 +1,4 @@
+import tls from 'tls';
 import net from 'net';
 import EventEmitter from 'events';
 import debug from 'debug';
@@ -6,56 +7,88 @@ const log = debug('fwdizer:Router');
 
 export default class Router extends EventEmitter {
     constructor({
-        port
+        externalPort,
+        internalPort = 0,
+        tlsConfig
     }) {
         super();
 
 
 
-        const socketQueue = [];
+        Object.assign(this, {
+            externalPort
+        });
 
 
 
-        const server = this.server = net.createServer();
+        const externalSocketQueue = [];
 
-        server.listen(port);
+        const externalServer = this.externalServer = net.createServer();
 
-        // Bail on any server error.
-        server.on('error', (error) => {
-            log(`Server Error: ${error.toString()}`);
+        externalServer.listen(externalPort);
+
+        externalServer.on('error', (error) => {
+            log(`External Server Error: ${error.toString()}`);
             this.selfDestruct();
         });
 
-        server.on('close', () => {
-            log('Server Closed');
+        externalServer.on('close', () => {
+            log('External Server Closed');
             this.selfDestruct();
         });
 
-        server.on('connection', (socket) => {
-            log('New Client on Server');
+        externalServer.on('connection', (socket) => {
+            log('New Client on External Server');
 
-            socketQueue.push(socket);
+            externalSocketQueue.push(socket);
 
             this.emit('newConnection');
         });
 
 
 
-        this.on('newTunnel', (tunnelSocket) => {
-            if (socketQueue.length === 0) {
-                tunnelSocket.end();
-            } else {
-                const queuedSocket = socketQueue.shift();
+        const internalServer = this.internalServer = tls.createServer({
+            ...tlsConfig,
+            requestCert: true,
+            rejectUnauthorized: true
+        });
 
-                tunnelSocket.pipe(queuedSocket);
-                queuedSocket.pipe(tunnelSocket);
+        internalServer.listen(internalPort, () => {
+            this.internalPort = internalServer.address().port;
+
+            this.emit('ready', {
+                internalPort: this.internalPort
+            });
+        });
+
+        internalServer.on('error', (error) => {
+            log(`Internal Server Error: ${error.toString()}`);
+            this.selfDestruct();
+        });
+
+        internalServer.on('close', () => {
+            log('Internal Server Closed');
+            this.selfDestruct();
+        });
+
+        internalServer.on('secureConnection', (socket) => {
+            if (externalSocketQueue.length === 0) {
+                return socket.end();
             }
+
+            const queuedExternalSocket = externalSocketQueue.shift();
+
+            queuedExternalSocket.pipe(socket);
+            socket.pipe(queuedExternalSocket);
         });
     }
 
     selfDestruct() {
         log('Self-Destructing');
 
-        this.emit('selfDestruct');
+        this.externalServer.close();
+        this.internalServer.close();
+
+        this.emit('dead');
     }
 }
