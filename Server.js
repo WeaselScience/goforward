@@ -1,7 +1,7 @@
 import EventEmitter from 'events';
 import debug from 'debug';
 import Router from './Router';
-import ControlServer from './control/ControlServer';
+import ControlServer from './ControlServer';
 
 const log = debug('fwdizer:Server');
 
@@ -24,25 +24,18 @@ export default class Server extends EventEmitter {
         });
 
         control.on('connection', (socket) => {
-            const routers = [];
-
             socket.on('createRouter', ({
                 externalPort
-            }) => {
+            }, callback) => {
                 const router = new Router({
                     externalPort,
                     tlsConfig
                 });
 
                 router.on('ready', () => {
-                    socket.emit('routerReady', {
-                        externalPort,
+                    callback({
+                        error: null,
                         internalPort: router.internalPort
-                    });
-
-                    routers.push({
-                        externalPort,
-                        router
                     });
 
                     router.on('newConnection', () => {

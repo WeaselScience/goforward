@@ -1,22 +1,23 @@
-import Client from './Client';
-import Server from './Server';
+import Client from '../Client';
+import Server from '../Server';
+import fs from 'fs';
+
+const tlsConfig = JSON.parse(fs.readFileSync('tls.json'));
 
 const server = new Server({
     port: 3000,
-    secret: 'asd'
+    tlsConfig
 });
 
 server.on('ready', () => {
-    console.log('Server Ready!');
-
     const client = new Client({
         serverHost: '127.0.0.1',
         serverPort: 3000,
-        secret: 'asd'
+        tlsConfig
     });
 
     client.expose({
         localPort: 1234,
-        remotePort: 8080
+        externalPort: 8080
     });
 });

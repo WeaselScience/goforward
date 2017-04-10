@@ -9,6 +9,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "babel-preset-es2015": "^6.24.1",
+    "babel-preset-stage-2": "^6.24.1",
     "debug": "^2.6.3",
     "duplexer2": "^0.1.4",
     "lodash": "^4.17.4",
