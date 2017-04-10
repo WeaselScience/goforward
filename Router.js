@@ -13,21 +13,15 @@ export default class Router extends EventEmitter {
     }) {
         super();
 
-
-
-        log('Creating');
-
-
-
-        Object.assign(this, {
-            externalPort
-        });
+        log(`Creating for external port ${externalPort} (internal port - ${
+            internalPort
+        })`);
 
 
 
         const externalSocketQueue = [];
 
-        const externalServer = this.externalServer = net.createServer();
+        const externalServer = net.createServer();
 
         externalServer.listen(externalPort);
 
@@ -42,7 +36,7 @@ export default class Router extends EventEmitter {
         });
 
         externalServer.on('connection', (socket) => {
-            log('New Client on External Server');
+            log('New Client on External Server - emit newConnection');
 
             externalSocketQueue.push(socket);
 
@@ -51,7 +45,7 @@ export default class Router extends EventEmitter {
 
 
 
-        const internalServer = this.internalServer = tls.createServer({
+        const internalServer = tls.createServer({
             ...tlsConfig,
             requestCert: true,
             rejectUnauthorized: true
@@ -59,6 +53,10 @@ export default class Router extends EventEmitter {
 
         internalServer.listen(internalPort, () => {
             this.internalPort = internalServer.address().port;
+
+            log(`Duplex ready - external ${externalPort} internal ${
+                this.internalPort
+            } - emitting ready.`);
 
             this.emit('ready', {
                 internalPort: this.internalPort
@@ -76,9 +74,15 @@ export default class Router extends EventEmitter {
         });
 
         internalServer.on('secureConnection', (socket) => {
+            log('Received secure connection on internal server...');
+
             if (externalSocketQueue.length === 0) {
+                log('...but no sockets are in the queue.');
+
                 return socket.end();
             }
+
+            log('...Forwarding a pending socket.');
 
             const queuedExternalSocket = externalSocketQueue.shift();
 
